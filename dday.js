@@ -4,6 +4,60 @@
 
 const MAX_EVENTS = 20;
 
+/* ── Supabase ── */
+const SUPABASE_URL = 'https://nluhqgaqvxxriwcqxxyk.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5sdWhxZ2Fxdnh4cml3Y3F4eHlrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNTQwNDQsImV4cCI6MjA5NjczMDA0NH0.bYcfs4eWp3v-tFLesQZJIfH0vFQi9pdp1JnOU9eTQm4';
+let db = null;
+
+function initSupabase() {
+  if (window.supabase) {
+    db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  }
+}
+
+async function loadEventsFromDB() {
+  if (!db) return false;
+  try {
+    const { data, error } = await db
+      .from('dday_events')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    state.events = data.map(r => ({
+      id: r.id,
+      title: r.title,
+      date: r.date,
+      category: r.category,
+      isAnnual: r.is_annual,
+      createdAt: r.created_at,
+    }));
+    saveState();
+    return true;
+  } catch (e) {
+    console.warn('Supabase 로드 실패, localStorage 사용:', e);
+    return false;
+  }
+}
+
+async function insertEventToDB(event) {
+  if (!db) return;
+  const { error } = await db.from('dday_events').insert({
+    id: event.id,
+    title: event.title,
+    date: event.date,
+    category: event.category,
+    is_annual: event.isAnnual,
+    created_at: event.createdAt,
+  });
+  if (error) console.error('Supabase insert 실패:', error);
+}
+
+async function removeEventFromDB(id) {
+  if (!db) return;
+  const { error } = await db.from('dday_events').delete().eq('id', id);
+  if (error) console.error('Supabase delete 실패:', error);
+}
+
 const CATEGORIES = [
   { id: 'exam',        emoji: '📝', label: '시험' },
   { id: 'study',       emoji: '📚', label: '공부' },
@@ -358,6 +412,7 @@ function addEvent({ title, date, category, isAnnual }) {
   saveState();
   render();
   showSnack(`"${title}" D-Day가 추가됐어요 ✅`);
+  insertEventToDB(newEvent);
 
   if (computeDiff(newEvent) === 0) {
     setTimeout(() => FW.launch(title), 400);
@@ -371,6 +426,7 @@ function deleteEvent(id) {
   saveState();
   render();
   showSnack(`"${ev.title}"이(가) 삭제됐어요`);
+  removeEventFromDB(id);
 }
 
 /* ── Export / Import ── */
@@ -785,11 +841,18 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () 
 });
 
 /* ── Init ── */
-loadState();
+loadState();                // localStorage 먼저 로드 (즉시 표시)
 applyTheme(state.theme);
 document.getElementById('sortSelect').value = state.sortBy;
 buildCatPicker();
 FW.init();
+initSupabase();
 render();
-checkAndLaunchFireworks();
+
+// Supabase에서 최신 데이터 로드 (비동기)
+loadEventsFromDB().then(ok => {
+  render();
+  checkAndLaunchFireworks();
+});
+
 scheduleMidnight();
