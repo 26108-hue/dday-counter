@@ -239,6 +239,44 @@ function toggleTheme() {
   saveState();
 }
 
+/* ── Date Picker Helpers ── */
+function getDaysInMonth(year, month) {
+  return new Date(year, month, 0).getDate();
+}
+
+function updateDayOptions() {
+  const daySelect = document.getElementById('daySelect');
+  const year = parseInt(document.getElementById('yearInput').value) || new Date().getFullYear();
+  const month = parseInt(document.getElementById('monthSelect').value);
+  const prevDay = parseInt(daySelect.value) || 0;
+
+  const max = month ? getDaysInMonth(year, month) : 31;
+  daySelect.innerHTML = '<option value="">일</option>';
+  for (let d = 1; d <= max; d++) {
+    const opt = document.createElement('option');
+    opt.value = d;
+    opt.textContent = `${d}일`;
+    if (d === prevDay) opt.selected = true;
+    daySelect.appendChild(opt);
+  }
+}
+
+function getDateValue() {
+  const y = document.getElementById('yearInput').value.trim();
+  const m = document.getElementById('monthSelect').value;
+  const d = document.getElementById('daySelect').value;
+  if (!y || !m || !d) return '';
+  return `${String(y).padStart(4, '0')}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+}
+
+function setDateInputs(dateStr) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  document.getElementById('yearInput').value = y;
+  document.getElementById('monthSelect').value = m;
+  updateDayOptions();
+  document.getElementById('daySelect').value = d;
+}
+
 /* ── Modal ── */
 function openModal() {
   const modal = document.getElementById('modal');
@@ -247,7 +285,9 @@ function openModal() {
   document.getElementById('ddayForm').reset();
   document.getElementById('charCount').textContent = '0 / 30';
   document.getElementById('titleInput').classList.remove('is-invalid');
-  document.getElementById('dateInput').classList.remove('is-invalid');
+  ['yearInput', 'monthSelect', 'daySelect'].forEach(id =>
+    document.getElementById(id).classList.remove('is-invalid')
+  );
   document.getElementById('titleError').hidden = true;
   document.getElementById('dateError').hidden = true;
 
@@ -258,8 +298,7 @@ function openModal() {
   // Default date to today
   const today = new Date();
   const pad = n => String(n).padStart(2, '0');
-  document.getElementById('dateInput').value =
-    `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+  setDateInputs(`${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`);
 
   modal.hidden = false;
   requestAnimationFrame(() => document.getElementById('titleInput').focus());
@@ -637,9 +676,9 @@ document.getElementById('ddayForm').addEventListener('submit', e => {
   e.preventDefault();
 
   const titleInput = document.getElementById('titleInput');
-  const dateInput = document.getElementById('dateInput');
   const titleError = document.getElementById('titleError');
   const dateError = document.getElementById('dateError');
+  const dateValue = getDateValue();
 
   let valid = true;
 
@@ -653,13 +692,20 @@ document.getElementById('ddayForm').addEventListener('submit', e => {
     titleError.hidden = true;
   }
 
-  if (!dateInput.value) {
-    dateInput.classList.add('is-invalid');
+  if (!dateValue) {
+    if (!document.getElementById('yearInput').value)
+      document.getElementById('yearInput').classList.add('is-invalid');
+    if (!document.getElementById('monthSelect').value)
+      document.getElementById('monthSelect').classList.add('is-invalid');
+    if (!document.getElementById('daySelect').value)
+      document.getElementById('daySelect').classList.add('is-invalid');
     dateError.hidden = false;
-    if (valid) dateInput.focus();
+    if (valid) document.getElementById('yearInput').focus();
     valid = false;
   } else {
-    dateInput.classList.remove('is-invalid');
+    ['yearInput', 'monthSelect', 'daySelect'].forEach(id =>
+      document.getElementById(id).classList.remove('is-invalid')
+    );
     dateError.hidden = true;
   }
 
@@ -667,13 +713,17 @@ document.getElementById('ddayForm').addEventListener('submit', e => {
 
   addEvent({
     title: titleInput.value.trim(),
-    date: dateInput.value,
+    date: dateValue,
     category: getSelectedCat(),
     isAnnual: document.getElementById('annualCheck').checked,
   });
 
   closeModal();
 });
+
+/* ── Date Picker Events ── */
+document.getElementById('yearInput').addEventListener('input', updateDayOptions);
+document.getElementById('monthSelect').addEventListener('change', updateDayOptions);
 
 /* ── Char Counter ── */
 document.getElementById('titleInput').addEventListener('input', function () {

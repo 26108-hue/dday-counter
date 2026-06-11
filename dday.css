@@ -594,6 +594,28 @@ body {
   margin-top: 2px;
 }
 
+/* Date Row */
+.date-row {
+  display: flex;
+  gap: 8px;
+}
+
+.date-year {
+  flex: 0 0 90px;
+  -moz-appearance: textfield;
+}
+
+.date-year::-webkit-inner-spin-button,
+.date-year::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.date-month,
+.date-day {
+  flex: 1;
+}
+
 /* Category picker */
 .cat-picker {
   display: flex;
